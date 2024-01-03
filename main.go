@@ -2,49 +2,63 @@ package main
 
 import (
 	"fmt"
-	"sync"
 	"time"
 )
 
-func main () {
-	now:=time.Now()
-	ws:=&sync.WaitGroup{}
-	playerId:=10
-	playerch:=make(chan string,256)
-	// goroutines
-	go fetchPlayerStats(playerId,playerch,ws)
-	go fetchPlayerHistory(playerId,playerch,ws)
-	go fetchPlayerFriends(playerId,playerch,ws)
-	//add the above 2 rotuinnes to waitgroup
-	ws.Add(3)
-	//wait for the sloweset fetch
-	ws.Wait()
-	//close channel else deadlock
-	close(playerch)
+type Message struct {
+	From    string
+	Payload string
+}
 
-	for data := range playerch{
-		fmt.Println(data)
+type Server struct {
+	messagechan chan Message
+	quitchan    chan struct{}
+}
+
+func (s *Server) StartAndListen() {
+free:
+	for {
+		select {
+		case msg := <-s.messagechan:
+			fmt.Printf("%s SAYS %s\n", msg.From, msg.Payload)
+		case <-s.quitchan:
+			fmt.Println("Shutting Down...")
+			break free
+		default:
+		}
+	}
+	fmt.Println("Server Has Shut Down.")
+}
+
+func SendMessageToServer(messagechan chan Message, payload string) {
+	msg := Message{
+		From:    "Shrihari",
+		Payload: payload,
+	}
+	messagechan <- msg
+}
+
+func QuitFullServer(quitchan chan struct{}) {
+	close(quitchan)
+}
+
+func main() {
+	s := &Server{
+		messagechan: make(chan Message),
+		quitchan:    make(chan struct{}),
 	}
 
-	fmt.Println(time.Since(now))
-}
+	go s.StartAndListen()
 
-func fetchPlayerStats(id int,playerch chan string,ws *sync.WaitGroup){
-	time.Sleep(60*time.Millisecond)
-	playerch<-"shriahri sudevan"
-	ws.Done()
-}
+	go func() {
+		time.Sleep(2 * time.Second)
+		SendMessageToServer(s.messagechan, "Shreyas says hi!")
+	}()
 
-func fetchPlayerHistory(id int,playerch chan string,ws *sync.WaitGroup){
-	//this is the slowest fetch so in an async env total time == slowest func
-	// if it was a sync env then total time == sum of all exec times
-	time.Sleep(180*time.Millisecond)
-	playerch<-"lost"
-	ws.Done()
-}
+	go func() {
+		time.Sleep(4 * time.Second)
+		QuitFullServer(s.quitchan)
+	}()
 
-func fetchPlayerFriends(id int,playerch chan string,ws *sync.WaitGroup){
-	time.Sleep(120*time.Millisecond)
-	playerch<-"Shreyas"
-	ws.Done()
+	select {}
 }

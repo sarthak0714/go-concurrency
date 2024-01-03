@@ -38,7 +38,7 @@ func fetchPlayerStats(id int,playerch chan string,ws *sync.WaitGroup){
 func fetchPlayerHistory(id int,playerch chan string,ws *sync.WaitGroup){
 	//this is the slowest fetch so in an async env total time == slowest func
 	// if it was a sync env then total time == sum of all exec times
-	time.Sleep(180*time.Microsecond)
+	time.Sleep(180*time.Millisecond)
 	playerch<-"lost"
 	ws.Done()
 }
